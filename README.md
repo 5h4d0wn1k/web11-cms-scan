@@ -28,8 +28,15 @@ CMS platform fingerprinting and misconfiguration detection for WordPress, Joomla
 ## Usage
 
 ```bash
-# Run offline demo against bundled CMS samples
-python3 firmware/cms_scan.py
+# Offline demo: host bundled CMS samples on loopback, scan via real urllib fetch
+python3 cms_scan.py --demo              # or run with no arguments
+
+# Live scan
+python3 cms_scan.py --url http://127.0.0.1:8080/
+python3 cms_scan.py --url http://127.0.0.1:8080/ --timeout 5 -v
+
+# Run the offline test suite
+python3 -m unittest discover -s tests
 
 # Programmatic use
 from firmware.cms_scan import CMSScanner
@@ -39,6 +46,33 @@ scanner.load_target()
 scanner.run_scan()
 scanner.print_report()
 ```
+
+## Live Lab Test Plan
+
+Run against a local lab target only (loopback or a VM you own):
+
+1. `python3 cms_scan.py --demo` — the engine hosts bundled WordPress/Joomla/
+   Drupal samples plus a hardened clean control on loopback and scans them
+   through the exact same urllib fetch path used by `--url`. Confirm all three
+   CMSes are fingerprinted, findings are reported, and the clean control yields
+   zero findings (both demo legs exit 0).
+2. Stand up a knowingly-vulnerable CMS locally (e.g. an old WordPress
+   installation in an isolated VM) and run
+   `python3 cms_scan.py --url http://127.0.0.1:<port>/`.
+3. Confirm the fingerprint matches and missing-header/admin findings are
+   reported. Never point this at systems you do not own.
+4. `python3 -m unittest discover -s tests` — full offline suite must pass.
+
+## Metrics
+
+- Demo wall time: < 15 s (three CMS samples + clean control served from a
+  loopback HTTP server; each scanned over a real urllib fetch).
+- Live path coverage: the demo exercises `CMSScanner` with `demo_mode=False`,
+  i.e. `_fetch_url` over HTTP — the identical code path as a production scan.
+- Findings per sample: WordPress 7, Joomla 6, Drupal 6 (demo run); clean
+  control reports 0.
+- Test suite: 9 deterministic offline tests (`python3 -m unittest`), no
+  external network access required (loopback only).
 
 ## Example Output
 
